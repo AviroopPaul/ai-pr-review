@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterApiKey) {
-      console.error("OPENROUTER_API_KEY is not configured");
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      console.error("GROQ_API_KEY is not configured");
       return NextResponse.json(
         { error: "AI service is not configured" },
         { status: 500 }
@@ -63,19 +63,17 @@ ${userQuestion}
 
 Please provide a detailed analysis and answer to the user's question.`;
 
-    // Make request to OpenRouter API with streaming
+    // Make request to Groq API with streaming
     const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${openRouterApiKey}`,
-          "HTTP-Referer": process.env.NEXTAUTH_URL || "http://localhost:3000",
-          "X-Title": "KnowYourPR - AI Code Reviewer",
+          Authorization: `Bearer ${groqApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-4o",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -95,7 +93,7 @@ Please provide a detailed analysis and answer to the user's question.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenRouter API error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       return NextResponse.json(
         { error: "Failed to get AI response" },
         { status: 500 }
