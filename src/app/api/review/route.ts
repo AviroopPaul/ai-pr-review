@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { codeDiff, userQuestion, fileName } = body;
+    const { codeDiff, userQuestion, fileName, conversationHistory } = body;
 
     if (!codeDiff || !userQuestion) {
       return NextResponse.json(
@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
     // Construct the prompt for the AI
     const systemPrompt = `You are an expert code reviewer for a senior software engineering team. Your feedback is always constructive, clear, and concise.
 
-Analyze the following code diff and answer the user's question. Provide code examples for your suggestions if applicable.
+You have access to the conversation history, so you can reference previous questions, answers, and discussions. Use this context to provide more relevant and connected responses.
+
+IMPORTANT: Keep your responses SHORT and CRISP. Be direct and to the point. Always provide specific code examples from the diff showing what to improve, not just general advice.
+
+Analyze the following code diff and answer the user's question. Focus on actionable improvements with concrete examples from the actual code.
 
 Focus on:
 - Code quality and best practices
@@ -49,8 +53,29 @@ Focus on:
 - Maintainability and readability
 - Testing recommendations
 
-Be specific and actionable in your feedback.`;
+Be specific and actionable in your feedback. When referencing previous parts of the conversation, be clear about what you're referring to.`;
 
+    // Build messages array with conversation history
+    const messages = [
+      {
+        role: "system",
+        content: systemPrompt,
+      },
+    ];
+
+    // Add conversation history if provided (limit to last 10 messages to prevent token overflow)
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      // Convert ChatMessage format to Groq format and limit to last 10 messages
+      const recentHistory = conversationHistory.slice(-10);
+      recentHistory.forEach((msg: any) => {
+        messages.push({
+          role: msg.role,
+          content: msg.content,
+        });
+      });
+    }
+
+    // Add current user question with code diff context
     const userPrompt = `CODE DIFF:
 \`\`\`diff
 ${codeDiff}
@@ -63,6 +88,11 @@ ${userQuestion}
 
 Please provide a detailed analysis and answer to the user's question.`;
 
+    messages.push({
+      role: "user",
+      content: userPrompt,
+    });
+
     // Make request to Groq API with streaming
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -74,16 +104,7 @@ Please provide a detailed analysis and answer to the user's question.`;
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: userPrompt,
-            },
-          ],
+          messages,
           max_tokens: 2000,
           temperature: 0.7,
           stream: true, // Enable streaming
