@@ -90,6 +90,7 @@ export default function Chat({ codeDiff, fileName }: ChatProps) {
           codeDiff,
           userQuestion,
           fileName: fileName || "Unknown file",
+          conversationHistory: messages, // Send current conversation history for context
         }),
       });
 
@@ -232,6 +233,11 @@ export default function Chat({ codeDiff, fileName }: ChatProps) {
               <React.Fragment key={message.id}>
                 <ListItem sx={{ alignItems: "flex-start" }}>
                   <Avatar
+                    src={
+                      message.role === "user" && session?.user?.image
+                        ? session.user.image
+                        : undefined
+                    }
                     sx={{
                       bgcolor:
                         message.role === "user"
